@@ -3,8 +3,6 @@ import Security
 
 enum KeychainKey: String {
     case geminiAPIKey
-    case notionToken
-    case notionDatabaseID
 }
 
 /// Stores secrets (API keys, tokens) in the macOS Keychain, never on disk in plaintext.

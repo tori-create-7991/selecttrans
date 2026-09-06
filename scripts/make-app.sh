@@ -29,7 +29,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleExecutable</key><string>NaniMini</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
-    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>LSUIElement</key><true/>
 </dict>
 </plist>
@@ -52,8 +52,10 @@ else
     echo "   (Accessibility + Keychain permission will reset on every rebuild.)"
     echo "   One-time fix: Keychain Access → Certificate Assistant → Create a Certificate"
     echo "     Name='$SIGN_IDENTITY', Identity Type='Self Signed Root', Type='Code Signing'."
-    codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+    codesign --force --sign - "$APP"
 fi
+
+codesign --verify --deep --strict "$APP"
 
 # Keep existing local launch commands working after the public app rename.
 rm -rf "$LEGACY_APP"
