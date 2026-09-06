@@ -7,12 +7,11 @@ struct TranslationResult {
     let mode: TranslationMode
 }
 
-/// Orchestrates: detect direction -> build prompt -> stream from Gemini ->
-/// fire history to Notion. Also offers back-translation and warm-up.
+/// Orchestrates direction detection, the selected engine, and local history.
 @MainActor
 final class Translator {
-    private let gemini = GeminiClient()
-    private let notion = NotionHistoryClient()
+    private let engines = TranslationEngineStore()
+    private let history = MarkdownHistoryStore.shared
 
     /// Streams the translation; `onDelta` receives chunks as they arrive.
     /// Returns the full result once the stream completes.
@@ -25,15 +24,19 @@ final class Translator {
         onDelta: @escaping @MainActor (String) -> Void
     ) async throws -> TranslationResult {
         let direction = LangDetector.direction(for: text)
-        let model = ModelStore.model(for: mode)
-        let coordinator = TranslationStreamCoordinator { [gemini] prompt, model, onDelta in
-            try await gemini.translateStream(prompt: prompt, model: model, onDelta: onDelta)
+        let engine = makeEngine()
+        let availability = await engine.availability()
+        guard availability.isAvailable else {
+            throw TranslationEngineError.unavailable(availability.reason ?? "選択した翻訳エンジンを利用できません。")
+        }
+        let coordinator = TranslationStreamCoordinator { prompt, _, onDelta in
+            try await engine.translate(prompt: prompt, mode: mode, onDelta: onDelta)
         }
         let full = try await coordinator.run(
             text: text,
             direction: direction,
             mode: mode,
-            model: model,
+            model: "",
             preferences: preferences,
             onDelta: onDelta
         )
@@ -46,9 +49,10 @@ final class Translator {
             direction: direction.label,
             mode: mode.rawValue,
             app: sourceApp,
-            date: ISO8601DateFormatter().string(from: Date())
+            date: ISO8601DateFormatter().string(from: Date()),
+            engine: engine.id.displayName
         )
-        Task { await notion.save(record) }
+        Task { try? await history.save(record) }
 
         return result
     }
@@ -58,11 +62,31 @@ final class Translator {
     func backTranslate(_ text: String) async throws -> String {
         let input = TranslationOutputParser.backTranslationInput(from: text)
         let direction = LangDetector.direction(for: input)
-        let prompt = Prompts.build(text: input, direction: direction, mode: .translate)
-        return try await gemini.translate(prompt: prompt, model: ModelStore.model(for: .translate))
+        let engine = makeEngine()
+        let availability = await engine.availability()
+        guard availability.isAvailable else {
+            throw TranslationEngineError.unavailable(availability.reason ?? "選択した翻訳エンジンを利用できません。")
+        }
+        var output = ""
+        try await engine.translate(
+            prompt: Prompts.build(text: input, direction: direction, mode: .translate),
+            mode: .translate
+        ) { output += $0 }
+        return output
     }
 
     func warmUp() async {
-        await gemini.warmUp()
+        await makeEngine().warmUp()
+    }
+
+    private func makeEngine() -> any TranslationEngine {
+        switch engines.selected {
+        case .gemini:
+            GeminiTranslationEngine()
+        case .qwenMLX:
+            QwenMLXTranslationEngine()
+        case .foundationModels:
+            FoundationModelsTranslationEngine()
+        }
     }
 }

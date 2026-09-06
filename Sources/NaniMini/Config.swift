@@ -21,6 +21,5 @@ enum Config {
     ]
 
     static let geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models"
-    static let notionVersion = "2022-06-28"
     static let keychainService = "com.ryo.nanimini"
 }

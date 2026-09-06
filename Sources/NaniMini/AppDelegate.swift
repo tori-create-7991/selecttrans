@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var resultCache = TranslationResultCache()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LegacyHistoryCleanup.removePendingQueue()
         setupMainMenu()
         setupStatusItem()
 
@@ -42,7 +43,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 && self.translationPreferences.isFastLiteralDisplayEnabled
             if let cached = self.resultCache.value(
                 for: mode,
-                fastLiteralDisplay: fastLiteralDisplay
+                fastLiteralDisplay: fastLiteralDisplay,
+                engine: TranslationEngineStore().selected
             ), !cached.isEmpty {
                 self.cancelCurrentTranslation()
                 // Already computed for this text — show it, no API call.
@@ -68,7 +70,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in await self?.translator.warmUp() }
         }
 
-        Task { await NotionHistoryClient().flushPending() }
     }
 
     // MARK: - Main menu (enables ⌘W to close + ⌘C/⌘V/⌘X/⌘A in editors)
@@ -264,7 +265,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 resultCache.set(
                     result.output,
                     for: mode,
-                    fastLiteralDisplay: fastLiteralDisplay
+                    fastLiteralDisplay: fastLiteralDisplay,
+                    engine: TranslationEngineStore().selected
                 )
             } catch is CancellationError {
                 return
@@ -326,7 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openSettings() {
         if settingsWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 440, height: 440),
+                contentRect: NSRect(x: 0, y: 0, width: 520, height: 500),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
