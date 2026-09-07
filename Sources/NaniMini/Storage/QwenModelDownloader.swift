@@ -25,7 +25,7 @@ final class QwenModelDownloader: ObservableObject {
             guard Set(files.map(\.rfilename)) == Set(Self.requiredFileNames),
                   let modelFile = files.first(where: { $0.rfilename == "model.safetensors" }),
                   modelFile.lfs?.size != nil,
-                  modelFile.lfs.flatMap({ Self.sha256Digest(fromLFSOID: $0.oid) }) != nil else {
+                  modelFile.lfs.flatMap({ Self.sha256Digest($0.sha256) }) != nil else {
                 throw DownloadError.invalidManifest
             }
             let needed = modelFile.lfs!.size * 2
@@ -124,12 +124,12 @@ final class QwenModelDownloader: ObservableObject {
             .appendingPathComponent("NaniMini/Models/Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
     }
 
-    nonisolated static func sha256Digest(fromLFSOID oid: String) -> String? {
+    nonisolated static func sha256Digest(_ hash: String) -> String? {
         let value: Substring
-        if oid.hasPrefix("sha256:") {
-            value = oid.dropFirst("sha256:".count)
+        if hash.hasPrefix("sha256:") {
+            value = hash.dropFirst("sha256:".count)
         } else {
-            value = Substring(oid)
+            value = Substring(hash)
         }
         guard value.count == 64,
               value.allSatisfy({ $0.isHexDigit }) else { return nil }
@@ -138,7 +138,7 @@ final class QwenModelDownloader: ObservableObject {
 
     private func verify(file: Manifest.File, at fileURL: URL) async throws {
         guard let lfs = file.lfs else { return }
-        guard let expected = Self.sha256Digest(fromLFSOID: lfs.oid) else {
+        guard let expected = Self.sha256Digest(lfs.sha256) else {
             throw DownloadError.integrityFailed(file.rfilename)
         }
         let actual = try await Task.detached {
@@ -163,7 +163,7 @@ final class QwenModelDownloader: ObservableObject {
         struct File: Decodable {
             let rfilename: String
             let lfs: LFS?
-            struct LFS: Decodable { let oid: String; let size: Int64 }
+            struct LFS: Decodable { let sha256: String; let size: Int64 }
         }
     }
 
