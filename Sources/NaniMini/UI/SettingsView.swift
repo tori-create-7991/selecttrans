@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var geminiKey = KeychainStore.get(.geminiAPIKey) ?? ""
     @State private var engine = TranslationEngineStore().selected
     @State private var modelPath = LocalModelStore().qwenModelURL?.path ?? "未設定"
+    @State private var downloadPath = LocalModelStore().qwenDownloadDirectory?.path ?? QwenModelDownloader.defaultDownloadDirectory.path
     @State private var savedAt: Date?
     @State private var foundationModelStatus = "確認中…"
     @State private var qwenModelStatus = "確認中…"
@@ -43,6 +44,7 @@ struct SettingsView: View {
                 Section("Qwen 1.5B MLX") {
                     Text("約869MB。ダウンロード時だけHugging Faceへ接続し、翻訳時は完全にローカルです。")
                         .font(.caption).foregroundStyle(.secondary)
+                    Text("ダウンロード先: \(downloadPath)").font(.caption).textSelection(.enabled)
                     Text(modelPath).font(.caption).textSelection(.enabled)
                     Text(qwenModelStatus).font(.caption)
                         .foregroundStyle(qwenModelStatus == "利用できます" ? .green : .secondary)
@@ -52,6 +54,8 @@ struct SettingsView: View {
                         Button("フォルダを選択", action: chooseModelFolder)
                             .disabled(qwenIsDownloading)
                     }
+                    Button("ダウンロード先を選択", action: chooseDownloadDirectory)
+                        .disabled(qwenIsDownloading)
                     downloadState
                 }
             }
@@ -100,6 +104,15 @@ struct SettingsView: View {
         try? LocalModelStore().setQwenModelURL(url)
         modelPath = url.path
         Task { await refreshQwenModelStatus() }
+    }
+
+    private func chooseDownloadDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.allowsMultipleSelection = false
+        panel.message = "Qwenモデルを保存する親フォルダを選択してください"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? LocalModelStore().setQwenDownloadDirectory(url)
+        downloadPath = url.path
     }
 
     private var qwenIsDownloading: Bool {

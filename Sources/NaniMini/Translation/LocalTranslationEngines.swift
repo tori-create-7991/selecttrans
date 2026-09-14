@@ -97,12 +97,21 @@ struct QwenMLXTranslationEngine: TranslationEngine {
 
 struct LocalModelStore {
     private static let qwenBookmarkKey = "qwenModelBookmark"
+    private static let qwenDownloadDirectoryBookmarkKey = "qwenDownloadDirectoryBookmark"
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
     var qwenModelURL: URL? {
-        guard let data = defaults.data(forKey: Self.qwenBookmarkKey) else { return nil }
+        url(for: Self.qwenBookmarkKey)
+    }
+
+    var qwenDownloadDirectory: URL? {
+        url(for: Self.qwenDownloadDirectoryBookmarkKey)
+    }
+
+    private func url(for key: String) -> URL? {
+        guard let data = defaults.data(forKey: key) else { return nil }
         var stale = false
         return try? URL(resolvingBookmarkData: data, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
     }
@@ -110,5 +119,10 @@ struct LocalModelStore {
     func setQwenModelURL(_ url: URL?) throws {
         guard let url else { defaults.removeObject(forKey: Self.qwenBookmarkKey); return }
         defaults.set(try url.bookmarkData(options: [.withSecurityScope]), forKey: Self.qwenBookmarkKey)
+    }
+
+    func setQwenDownloadDirectory(_ url: URL?) throws {
+        guard let url else { defaults.removeObject(forKey: Self.qwenDownloadDirectoryBookmarkKey); return }
+        defaults.set(try url.bookmarkData(options: [.withSecurityScope]), forKey: Self.qwenDownloadDirectoryBookmarkKey)
     }
 }

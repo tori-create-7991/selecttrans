@@ -25,11 +25,14 @@ final class QwenModelDownloader: ObservableObject {
             guard Set(files.map(\.rfilename)) == Set(Self.requiredFileNames),
                   let modelFile = files.first(where: { $0.rfilename == "model.safetensors" }),
                   modelFile.lfs?.size != nil,
-                  modelFile.lfs.flatMap({ Self.sha256Digest(fromLFSOID: $0.oid) }) != nil else {
+                  modelFile.lfs.flatMap({ Self.sha256Digest($0.sha256) }) != nil else {
                 throw DownloadError.invalidManifest
             }
             let needed = modelFile.lfs!.size * 2
-            let root = destinationDirectory()
+            let baseDirectory = downloadBaseDirectory()
+            let accessed = baseDirectory.startAccessingSecurityScopedResource()
+            defer { if accessed { baseDirectory.stopAccessingSecurityScopedResource() } }
+            let root = baseDirectory.appendingPathComponent("Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             let capacity = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage ?? 0
             guard capacity > needed else { throw DownloadError.insufficientStorage }
@@ -93,7 +96,13 @@ final class QwenModelDownloader: ObservableObject {
         if existing == 0 { fileManager.createFile(atPath: temporary.path, contents: nil) }
         let handle = try FileHandle(forWritingTo: temporary)
         defer { try? handle.close() }
-        try handle.seekToEnd()
+        if existing > 0, http.statusCode == 200 {
+            // The server ignored Range; replace the partial file with its full response.
+            try handle.truncate(atOffset: 0)
+            try handle.seek(toOffset: 0)
+        } else {
+            try handle.seekToEnd()
+        }
         var buffer = [UInt8]()
         buffer.reserveCapacity(65_536)
         do {
@@ -119,17 +128,19 @@ final class QwenModelDownloader: ObservableObject {
         try fileManager.moveItem(at: temporary, to: destination)
     }
 
-    private func destinationDirectory() -> URL {
-        fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("NaniMini/Models/Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
+    static let defaultDownloadDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("NaniMini/Models", isDirectory: true)
+
+    private func downloadBaseDirectory() -> URL {
+        LocalModelStore().qwenDownloadDirectory ?? Self.defaultDownloadDirectory
     }
 
-    nonisolated static func sha256Digest(fromLFSOID oid: String) -> String? {
+    nonisolated static func sha256Digest(_ hash: String) -> String? {
         let value: Substring
-        if oid.hasPrefix("sha256:") {
-            value = oid.dropFirst("sha256:".count)
+        if hash.hasPrefix("sha256:") {
+            value = hash.dropFirst("sha256:".count)
         } else {
-            value = Substring(oid)
+            value = Substring(hash)
         }
         guard value.count == 64,
               value.allSatisfy({ $0.isHexDigit }) else { return nil }
@@ -138,7 +149,7 @@ final class QwenModelDownloader: ObservableObject {
 
     private func verify(file: Manifest.File, at fileURL: URL) async throws {
         guard let lfs = file.lfs else { return }
-        guard let expected = Self.sha256Digest(fromLFSOID: lfs.oid) else {
+        guard let expected = Self.sha256Digest(lfs.sha256) else {
             throw DownloadError.integrityFailed(file.rfilename)
         }
         let actual = try await Task.detached {
@@ -163,7 +174,7 @@ final class QwenModelDownloader: ObservableObject {
         struct File: Decodable {
             let rfilename: String
             let lfs: LFS?
-            struct LFS: Decodable { let oid: String; let size: Int64 }
+            struct LFS: Decodable { let sha256: String; let size: Int64 }
         }
     }
 

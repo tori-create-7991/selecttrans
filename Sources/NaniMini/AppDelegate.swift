@@ -114,7 +114,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "翻"
+        let image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "SelectTrans")
+        image?.isTemplate = true
+        item.button?.image = image
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "スクショ翻訳", action: #selector(captureAction), keyEquivalent: ""))
