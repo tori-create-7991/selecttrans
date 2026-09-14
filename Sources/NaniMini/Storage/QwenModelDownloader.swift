@@ -30,6 +30,8 @@ final class QwenModelDownloader: ObservableObject {
             }
             let needed = modelFile.lfs!.size * 2
             let root = destinationDirectory()
+            let accessed = root.startAccessingSecurityScopedResource()
+            defer { if accessed { root.stopAccessingSecurityScopedResource() } }
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             let capacity = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage ?? 0
             guard capacity > needed else { throw DownloadError.insufficientStorage }
@@ -119,9 +121,12 @@ final class QwenModelDownloader: ObservableObject {
         try fileManager.moveItem(at: temporary, to: destination)
     }
 
+    static let defaultDownloadDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("NaniMini/Models", isDirectory: true)
+
     private func destinationDirectory() -> URL {
-        fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("NaniMini/Models/Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
+        let root = LocalModelStore().qwenDownloadDirectory ?? Self.defaultDownloadDirectory
+        return root.appendingPathComponent("Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
     }
 
     nonisolated static func sha256Digest(_ hash: String) -> String? {
