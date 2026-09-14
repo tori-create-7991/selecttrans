@@ -29,9 +29,10 @@ final class QwenModelDownloader: ObservableObject {
                 throw DownloadError.invalidManifest
             }
             let needed = modelFile.lfs!.size * 2
-            let root = destinationDirectory()
-            let accessed = root.startAccessingSecurityScopedResource()
-            defer { if accessed { root.stopAccessingSecurityScopedResource() } }
+            let baseDirectory = downloadBaseDirectory()
+            let accessed = baseDirectory.startAccessingSecurityScopedResource()
+            defer { if accessed { baseDirectory.stopAccessingSecurityScopedResource() } }
+            let root = baseDirectory.appendingPathComponent("Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             let capacity = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage ?? 0
             guard capacity > needed else { throw DownloadError.insufficientStorage }
@@ -95,7 +96,13 @@ final class QwenModelDownloader: ObservableObject {
         if existing == 0 { fileManager.createFile(atPath: temporary.path, contents: nil) }
         let handle = try FileHandle(forWritingTo: temporary)
         defer { try? handle.close() }
-        try handle.seekToEnd()
+        if existing > 0, http.statusCode == 200 {
+            // The server ignored Range; replace the partial file with its full response.
+            try handle.truncate(atOffset: 0)
+            try handle.seek(toOffset: 0)
+        } else {
+            try handle.seekToEnd()
+        }
         var buffer = [UInt8]()
         buffer.reserveCapacity(65_536)
         do {
@@ -124,9 +131,8 @@ final class QwenModelDownloader: ObservableObject {
     static let defaultDownloadDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("NaniMini/Models", isDirectory: true)
 
-    private func destinationDirectory() -> URL {
-        let root = LocalModelStore().qwenDownloadDirectory ?? Self.defaultDownloadDirectory
-        return root.appendingPathComponent("Qwen2.5-1.5B-Instruct-4bit", isDirectory: true)
+    private func downloadBaseDirectory() -> URL {
+        LocalModelStore().qwenDownloadDirectory ?? Self.defaultDownloadDirectory
     }
 
     nonisolated static func sha256Digest(_ hash: String) -> String? {
