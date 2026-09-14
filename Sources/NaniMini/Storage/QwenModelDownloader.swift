@@ -42,7 +42,7 @@ final class QwenModelDownloader: ObservableObject {
             for (index, file) in files.enumerated() {
                 state = .downloading(file.rfilename, index + 1, files.count)
                 let destinationFile = destination.appendingPathComponent(file.rfilename)
-                try await download(file: file, revision: manifest.sha, to: destinationFile)
+                try await downloadWithRetry(file: file, revision: manifest.sha, to: destinationFile)
             }
             try LocalModelStore().setQwenModelURL(destination)
             state = .ready
@@ -126,6 +126,33 @@ final class QwenModelDownloader: ObservableObject {
         }
         try? fileManager.removeItem(at: destination)
         try fileManager.moveItem(at: temporary, to: destination)
+    }
+
+    private func downloadWithRetry(file: Manifest.File, revision: String, to destination: URL) async throws {
+        let maximumAttempts = 5
+        for attempt in 1...maximumAttempts {
+            do {
+                try await download(file: file, revision: revision, to: destination)
+                return
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                guard attempt < maximumAttempts, isTransientNetworkError(error) else { throw error }
+                // A new resolve URL and the retained .partial file allow a Range resume.
+                try await Task.sleep(for: .seconds(attempt * 2))
+            }
+        }
+    }
+
+    private func isTransientNetworkError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        return switch urlError.code {
+        case .networkConnectionLost, .timedOut, .cannotConnectToHost,
+             .cannotFindHost, .notConnectedToInternet, .internationalRoamingOff:
+            true
+        default:
+            false
+        }
     }
 
     static let defaultDownloadDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
