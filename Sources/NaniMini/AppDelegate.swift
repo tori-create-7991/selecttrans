@@ -7,6 +7,7 @@ import ApplicationServices
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
+    private var ttsHistoryWindow: NSWindow?
     private var warmUpTimer: Timer?
 
     private let popup = PopupPanel()
@@ -70,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in await self?.translator.warmUp() }
         }
 
+        TTSServer.shared.start()
     }
 
     // MARK: - Main menu (enables ⌘W to close + ⌘C/⌘V/⌘X/⌘A in editors)
@@ -120,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "スクショ翻訳", action: #selector(captureAction), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "読み上げ履歴…", action: #selector(openTTSHistory), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "設定…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q"))
@@ -343,6 +346,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func openTTSHistory() {
+        if ttsHistoryWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 420, height: 360),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "読み上げ履歴"
+            window.contentView = NSHostingView(rootView: TTSHistoryView())
+            window.isReleasedWhenClosed = false
+            window.center()
+            ttsHistoryWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        ttsHistoryWindow?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func quit() {
