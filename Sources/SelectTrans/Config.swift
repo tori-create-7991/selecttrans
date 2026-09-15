@@ -21,5 +21,8 @@ enum Config {
     ]
 
     static let geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models"
-    static let keychainService = "com.ryo.nanimini"
+    static let keychainService = "com.ryo.selecttrans"
+    /// Pre-rename service id, kept only so `KeychainStore` can migrate items
+    /// saved before the `com.ryo.nanimini` -> `com.ryo.selecttrans` rename.
+    static let legacyKeychainService = "com.ryo.nanimini"
 }

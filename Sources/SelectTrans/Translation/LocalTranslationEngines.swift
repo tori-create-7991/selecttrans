@@ -113,7 +113,20 @@ struct LocalModelStore {
     private func url(for key: String) -> URL? {
         guard let data = defaults.data(forKey: key) else { return nil }
         var stale = false
-        return try? URL(resolvingBookmarkData: data, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+        guard let resolved = try? URL(
+            resolvingBookmarkData: data,
+            options: [.withSecurityScope],
+            relativeTo: nil,
+            bookmarkDataIsStale: &stale
+        ) else { return nil }
+        // The bookmarked directory can move (e.g. the NaniMini -> SelectTrans
+        // storage migration) and still resolve correctly by file id, but the
+        // stored bookmark data itself goes stale — refresh it so later
+        // resolves don't keep depending on a path that no longer exists.
+        if stale, let refreshed = try? resolved.bookmarkData(options: [.withSecurityScope]) {
+            defaults.set(refreshed, forKey: key)
+        }
+        return resolved
     }
 
     func setQwenModelURL(_ url: URL?) throws {

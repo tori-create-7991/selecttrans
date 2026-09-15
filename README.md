@@ -26,7 +26,7 @@ open SelectTrans.app
 
 メニューバーに「翻」が出れば起動成功。
 
-> **旧名称 `NaniMini` からのアップグレード**: バンドルID(`com.ryo.nanimini`→`com.ryo.selecttrans`)が変わったため、TCCがアクセシビリティ権限を新規アプリとして扱います。`SelectTrans.app`で改めてアクセシビリティ権限を許可してください。`scripts/make-app.sh`が使う自己署名証明書名も`NaniMini Self-Signed`→`SelectTrans Self-Signed`に変わったため、未作成なら初回セットアップの手順で作成してください。翻訳履歴(`NaniMini/history`)・Qwenモデル(`NaniMini/Models`)は初回起動時に`SelectTrans/`配下へ自動移行されます。
+> **旧名称 `NaniMini` からのアップグレード**: バンドルID(`com.ryo.nanimini`→`com.ryo.selecttrans`)が変わったため、TCCがアクセシビリティ権限を新規アプリとして扱います。`SelectTrans.app`で改めてアクセシビリティ権限を許可してください。`scripts/make-app.sh`が使う自己署名証明書名も`NaniMini Self-Signed`→`SelectTrans Self-Signed`に変わったため、未作成なら初回セットアップの手順で作成してください（既存の`NaniMini Self-Signed`証明書をそのまま使い続けたい場合は`SELECTTRANS_SIGN_IDENTITY="NaniMini Self-Signed"`を指定してビルドすれば新規作成は不要です）。翻訳履歴(`NaniMini/history`)・Qwenモデル(`NaniMini/Models`)は初回起動時に`SelectTrans/`配下へ自動移行されます。Gemini APIキー(Keychain)は`com.ryo.nanimini`保存分を初回読み取り時に自動移行します。
 
 ## 初回セットアップ
 
