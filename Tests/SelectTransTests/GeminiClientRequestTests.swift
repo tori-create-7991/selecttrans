@@ -1,5 +1,5 @@
 import Testing
-@testable import NaniMini
+@testable import SelectTrans
 
 @Suite("GeminiClient requests")
 struct GeminiClientRequestTests {

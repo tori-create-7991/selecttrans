@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "NaniMini",
+    name: "SelectTrans",
     platforms: [.macOS(.v26)],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
@@ -12,7 +12,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "NaniMini",
+            name: "SelectTrans",
             dependencies: [
                 "KeyboardShortcuts",
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
@@ -21,13 +21,13 @@ let package = Package(
                 .product(name: "HuggingFace", package: "swift-huggingface"),
                 .product(name: "Tokenizers", package: "swift-transformers")
             ],
-            path: "Sources/NaniMini",
+            path: "Sources/SelectTrans",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
-            name: "NaniMiniTests",
-            dependencies: ["NaniMini"],
-            path: "Tests/NaniMiniTests",
+            name: "SelectTransTests",
+            dependencies: ["SelectTrans"],
+            path: "Tests/SelectTransTests",
             swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]

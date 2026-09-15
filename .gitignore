@@ -3,5 +3,4 @@
 /.plans/
 *.xcodeproj
 .DS_Store
-NaniMini.app
 SelectTrans.app

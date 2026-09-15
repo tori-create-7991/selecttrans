@@ -128,8 +128,15 @@ final class QwenModelDownloader: ObservableObject {
         try fileManager.moveItem(at: temporary, to: destination)
     }
 
-    static let defaultDownloadDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("NaniMini/Models", isDirectory: true)
+    static let defaultDownloadDirectory: URL = {
+        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let newDir = supportDir.appendingPathComponent("SelectTrans/Models", isDirectory: true)
+        LegacyStorageMigration.moveDirectoryIfNeeded(
+            legacy: supportDir.appendingPathComponent("NaniMini/Models", isDirectory: true),
+            to: newDir
+        )
+        return newDir
+    }()
 
     private func downloadBaseDirectory() -> URL {
         LocalModelStore().qwenDownloadDirectory ?? Self.defaultDownloadDirectory

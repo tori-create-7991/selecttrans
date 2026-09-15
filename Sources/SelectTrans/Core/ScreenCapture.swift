@@ -4,7 +4,7 @@ import AppKit
 /// Requires Screen Recording permission (prompted on first use).
 enum ScreenCapture {
     static func captureInteractive() async -> CGImage? {
-        let path = NSTemporaryDirectory() + "nanimini_\(UUID().uuidString).png"
+        let path = NSTemporaryDirectory() + "selecttrans_\(UUID().uuidString).png"
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")

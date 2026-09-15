@@ -30,7 +30,7 @@ request and displays the system reason when unavailable. Qwen and Foundation
 Models do not make translation network requests.
 
 Markdown history is appended to
-`~/Library/Application Support/NaniMini/history/YYYY-MM.md`. Entries include
+`~/Library/Application Support/SelectTrans/history/YYYY-MM.md`. Entries include
 time, engine, input, output, direction, mode, and source application. The
 history is plaintext, stored in an owner-only directory and file.
 

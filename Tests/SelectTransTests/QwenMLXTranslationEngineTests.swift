@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import NaniMini
+@testable import SelectTrans
 
 struct QwenMLXTranslationEngineTests {
     @Test func acceptsSplitSafetensorsWeightsForCustomModel() async throws {

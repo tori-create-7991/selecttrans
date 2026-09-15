@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import NaniMini
+@testable import SelectTrans
 
 @MainActor
 struct TranslationStreamCoordinatorTests {

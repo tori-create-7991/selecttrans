@@ -3,9 +3,16 @@ import Foundation
 actor MarkdownHistoryStore {
     static let shared = MarkdownHistoryStore(directory: defaultDirectory)
 
-    static let defaultDirectory: URL = FileManager.default
-        .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("NaniMini/history", isDirectory: true)
+    static let defaultDirectory: URL = {
+        let supportDir = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let newDir = supportDir.appendingPathComponent("SelectTrans/history", isDirectory: true)
+        LegacyStorageMigration.moveDirectoryIfNeeded(
+            legacy: supportDir.appendingPathComponent("NaniMini/history", isDirectory: true),
+            to: newDir
+        )
+        return newDir
+    }()
 
     private let directory: URL
 
