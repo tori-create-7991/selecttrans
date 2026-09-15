@@ -128,8 +128,26 @@ final class QwenModelDownloader: ObservableObject {
         try fileManager.moveItem(at: temporary, to: destination)
     }
 
-    static let defaultDownloadDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("NaniMini/Models", isDirectory: true)
+    static let defaultDownloadDirectory: URL = {
+        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let newDir = supportDir.appendingPathComponent("SelectTrans/Models", isDirectory: true)
+        migrateLegacyDirectoryIfNeeded(supportDir: supportDir, newDir: newDir)
+        return newDir
+    }()
+
+    /// One-time move from the pre-rename `NaniMini/Models` location so users
+    /// upgrading from the old app name don't need to re-download the ~869MB model.
+    private static func migrateLegacyDirectoryIfNeeded(supportDir: URL, newDir: URL) {
+        let legacyDir = supportDir.appendingPathComponent("NaniMini/Models", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: legacyDir.path),
+              !FileManager.default.fileExists(atPath: newDir.path)
+        else { return }
+        try? FileManager.default.createDirectory(
+            at: newDir.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try? FileManager.default.moveItem(at: legacyDir, to: newDir)
+    }
 
     private func downloadBaseDirectory() -> URL {
         LocalModelStore().qwenDownloadDirectory ?? Self.defaultDownloadDirectory

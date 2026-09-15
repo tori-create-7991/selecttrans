@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import NaniMini
+@testable import SelectTrans
 
 struct TranslationEngineStoreTests {
     @Test func defaultsToGemini() {

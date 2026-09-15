@@ -1,5 +1,5 @@
 import Testing
-@testable import NaniMini
+@testable import SelectTrans
 
 struct QwenModelDownloaderTests {
     @Test func acceptsTheHuggingFaceAPISHA256Value() {

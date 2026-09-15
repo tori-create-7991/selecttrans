@@ -9,14 +9,13 @@ cd "$(dirname "$0")/.."
 echo "==> Building (release)…"
 swift build -c release
 
-BIN=".build/release/NaniMini"
+BIN=".build/release/SelectTrans"
 APP="SelectTrans.app"
-LEGACY_APP="NaniMini.app"
 MACOS="$APP/Contents/MacOS"
 
 rm -rf "$APP"
 mkdir -p "$MACOS"
-cp "$BIN" "$MACOS/NaniMini"
+cp "$BIN" "$MACOS/SelectTrans"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -25,8 +24,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <dict>
     <key>CFBundleName</key><string>SelectTrans</string>
     <key>CFBundleDisplayName</key><string>SelectTrans</string>
-    <key>CFBundleIdentifier</key><string>com.ryo.nanimini</string>
-    <key>CFBundleExecutable</key><string>NaniMini</string>
+    <key>CFBundleIdentifier</key><string>com.ryo.selecttrans</string>
+    <key>CFBundleExecutable</key><string>SelectTrans</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>LSMinimumSystemVersion</key><string>26.0</string>
@@ -40,7 +39,7 @@ PLIST
 # to the certificate (not the per-build cdhash). This keeps Accessibility (TCC)
 # and Keychain access alive across rebuilds. Falls back to ad-hoc if the cert
 # isn't installed yet.
-SIGN_IDENTITY="${SELECTTRANS_SIGN_IDENTITY:-${NANIMINI_SIGN_IDENTITY:-NaniMini Self-Signed}}"
+SIGN_IDENTITY="${SELECTTRANS_SIGN_IDENTITY:-SelectTrans Self-Signed}"
 
 # NOTE: no -v here. A self-signed cert is untrusted (CSSMERR_TP_NOT_TRUSTED) so it
 # never appears under "valid identities only", but codesign can still sign with it.
@@ -56,10 +55,6 @@ else
 fi
 
 codesign --verify --deep --strict "$APP"
-
-# Keep existing local launch commands working after the public app rename.
-rm -rf "$LEGACY_APP"
-ln -s "$APP" "$LEGACY_APP"
 
 echo "==> Built $APP"
 echo "    Run with:  open $APP"

@@ -24,17 +24,15 @@ bash scripts/make-app.sh  # .app バンドル化（推奨：権限が安定）
 open SelectTrans.app
 ```
 
-旧名称の `NaniMini.app` は、ビルド時に `SelectTrans.app` への互換シンボリックリンクとして作成されます。
-
 メニューバーに「翻」が出れば起動成功。
 
-Swiftパッケージの内部ターゲット名と実行ファイル名は、既存環境との互換性のため`NaniMini`のまま維持しています。
+> **旧名称 `NaniMini` からのアップグレード**: バンドルID(`com.ryo.nanimini`→`com.ryo.selecttrans`)が変わったため、TCCがアクセシビリティ権限を新規アプリとして扱います。`SelectTrans.app`で改めてアクセシビリティ権限を許可してください。`scripts/make-app.sh`が使う自己署名証明書名も`NaniMini Self-Signed`→`SelectTrans Self-Signed`に変わったため、未作成なら初回セットアップの手順で作成してください。翻訳履歴(`NaniMini/history`)・Qwenモデル(`NaniMini/Models`)は初回起動時に`SelectTrans/`配下へ自動移行されます。
 
 ## 初回セットアップ
 
 1. **アクセシビリティ権限**: System Settings → プライバシーとセキュリティ → アクセシビリティ で SelectTrans を許可（疑似 Cmd+C で選択テキスト取得に必要）
 2. **Gemini API キー**: メニューバー「翻」→ 設定 → Gemini に貼り付け（https://aistudio.google.com/apikey ）
-3. **Qwen（任意）**: 設定で保存先を選んでから「Qwenをダウンロード」を押すと、約869MBのMLXモデルを取得します。既定の保存先は `~/Library/Application Support/NaniMini/Models/` です。取得時だけネットワークを使用し、翻訳時はローカル処理です。
+3. **Qwen（任意）**: 設定で保存先を選んでから「Qwenをダウンロード」を押すと、約869MBのMLXモデルを取得します。既定の保存先は `~/Library/Application Support/SelectTrans/Models/` です。取得時だけネットワークを使用し、翻訳時はローカル処理です。
 4. **Apple Foundation Models（任意）**: macOS 26、対応Mac、Apple Intelligenceを有効にすると利用できます。
 
 ## 使い方
@@ -49,8 +47,8 @@ SelectTransは翻訳処理のため、次のデータを扱います。
 - **スクリーンショット**: 画像翻訳を実行した場合だけ、一時PNGを作成します。OCRはmacOS Visionでオンデバイス処理し、一時ファイルは処理後に削除します。
 - **Gemini APIキー**: macOS Keychainに保存します。ソースコードや平文設定ファイルには保存しません。
 - **既存のNotion／保留履歴**: この変更は既存のNotionページや端末内の旧保留キューを変更・削除しません。必要な移行は別途、明示操作として扱います。
-- **Qwenモデル**: 明示的にダウンロード操作をした場合だけHugging Faceの `mlx-community/Qwen2.5-1.5B-Instruct-4bit` から、固定リビジョンを指定して取得します。選択した保存先（既定は `~/Library/Application Support/NaniMini/Models/`）に保存し、翻訳テキストはHugging Faceへ送信しません。
-- **翻訳履歴**: `~/Library/Application Support/NaniMini/history/YYYY-MM.md`に平文で保存します。所有者のみが読める権限を設定しますが、機密文を扱う場合は注意してください。
+- **Qwenモデル**: 明示的にダウンロード操作をした場合だけHugging Faceの `mlx-community/Qwen2.5-1.5B-Instruct-4bit` から、固定リビジョンを指定して取得します。選択した保存先（既定は `~/Library/Application Support/SelectTrans/Models/`）に保存し、翻訳テキストはHugging Faceへ送信しません。
+- **翻訳履歴**: `~/Library/Application Support/SelectTrans/history/YYYY-MM.md`に平文で保存します。所有者のみが読める権限を設定しますが、機密文を扱う場合は注意してください。
 - **解析・テレメトリー**: SelectTrans独自のアクセス解析や利用状況送信は実装していません。
 
 GeminiまたはQwenダウンロード時に送信するデータの取扱いは、それぞれのサービスの規約とプライバシーポリシーに従います。

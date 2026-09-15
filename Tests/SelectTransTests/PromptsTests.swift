@@ -1,5 +1,5 @@
 import Testing
-@testable import NaniMini
+@testable import SelectTrans
 
 struct PromptsTests {
     @Test func literalPromptRequestsOnlyLiteralText() {

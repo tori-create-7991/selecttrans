@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import NaniMini
+@testable import SelectTrans
 
 struct MarkdownHistoryStoreTests {
     @Test func appendsEngineLabelledRecordToMonthlyMarkdown() async throws {
