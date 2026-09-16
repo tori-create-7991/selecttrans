@@ -50,9 +50,16 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     /// Stops the current utterance and drops everything still queued.
+    ///
+    /// Resets state directly instead of relying on the `didCancel` delegate
+    /// callback: `stopSpeaking(at:)` is a no-op (no callback fires) if called
+    /// right as the current utterance finishes on its own, which would
+    /// otherwise leave `isSpeaking` stuck `true` and block the queue forever.
     func stopAll() {
         queue.removeAll()
         synthesizer.stopSpeaking(at: .immediate)
+        isSpeaking = false
+        TTSSpeakingNowStore.shared.set(nil)
     }
 
     private func truncate(_ text: String) -> String {

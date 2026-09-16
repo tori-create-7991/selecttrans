@@ -27,10 +27,12 @@ final class TTSSpeakingPopupPanel {
             removeEscMonitor()
             return
         }
-        let isFirstShow = panel == nil
         if panel == nil { build() }
         panel?.contentView = NSHostingView(rootView: TTSSpeakingPopupView(item: item))
-        if isFirstShow { restorePositionOrDefault() }
+        // Re-applied on every show (not just the first) so resetting the
+        // position in Speech Settings takes effect on the next utterance
+        // instead of requiring an app restart.
+        restorePositionOrDefault()
         panel?.orderFront(nil)
         installEscMonitor()
     }

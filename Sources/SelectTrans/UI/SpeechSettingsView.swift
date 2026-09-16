@@ -2,8 +2,8 @@ import SwiftUI
 
 struct SpeechSettingsView: View {
     private let preferences: TTSPreferenceStore
+    @ObservedObject private var server = TTSServer.shared
 
-    @State private var boundPort: UInt16?
     @State private var character: TTSCharacter
     @State private var rate: Float
     @State private var volume: Float
@@ -41,11 +41,10 @@ struct SpeechSettingsView: View {
                         } else {
                             TTSServer.shared.stop()
                         }
-                        boundPort = TTSServer.shared.boundPort
                     }
                 Text(statusText)
                     .font(.caption)
-                    .foregroundStyle(boundPort != nil ? .green : .secondary)
+                    .foregroundStyle(server.boundPort != nil ? .green : .secondary)
                 Text("外部ツール（Claude Code Stop hookなど）からの読み上げリクエストを127.0.0.1でのみ受け付けます。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -111,11 +110,10 @@ struct SpeechSettingsView: View {
         }
         .padding(20)
         .frame(width: 460)
-        .task { boundPort = TTSServer.shared.boundPort }
     }
 
     private var statusText: String {
-        if let boundPort {
+        if let boundPort = server.boundPort {
             "起動中 — 127.0.0.1:\(boundPort)"
         } else {
             "停止中"
