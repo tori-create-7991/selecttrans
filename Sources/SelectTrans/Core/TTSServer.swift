@@ -60,6 +60,13 @@ final class TTSServer {
         }
     }
 
+    func stop() {
+        listener?.cancel()
+        listener = nil
+        boundPort = nil
+        activeConnections.removeAll()
+    }
+
     private func handleStateChange(_ state: NWListener.State) {
         switch state {
         case .ready:
@@ -140,19 +147,26 @@ final class TTSServer {
             return
         }
 
+        let preferences = TTSPreferenceStore()
         let repo = body.repo ?? ""
-        let fullText = repo.isEmpty ? body.text : "\(repo). \(body.text)"
-        let language = resolveLanguage(explicit: body.lang, text: fullText)
+        let includeRepoPrefix = preferences.speakRepoPrefix && !repo.isEmpty
+        let fullText = includeRepoPrefix ? "\(repo). \(body.text)" : body.text
+        let language = resolveLanguage(explicit: body.lang, text: fullText, preferences: preferences)
 
-        Speaker.shared.speak(fullText, language: language)
+        Speaker.shared.speak(fullText, language: language, repo: repo, displayText: body.text)
         TTSHistoryStore.shared.record(repo: repo, session: body.session ?? "", text: body.text)
 
         respond(status: "200 OK", body: "", on: connection)
     }
 
-    private func resolveLanguage(explicit: String?, text: String) -> String {
+    private func resolveLanguage(explicit: String?, text: String, preferences: TTSPreferenceStore) -> String {
+        switch preferences.languageMode {
+        case .forcedJapanese: return "ja-JP"
+        case .forcedEnglish: return "en-US"
+        case .auto: break
+        }
         guard let explicit, explicit != "auto", !explicit.isEmpty else {
-            return LangDetector.speechLanguage(for: text)
+            return LangDetector.speechLanguage(for: text, threshold: preferences.cjkThreshold)
         }
         return explicit
     }

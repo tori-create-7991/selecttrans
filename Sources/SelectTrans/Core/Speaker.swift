@@ -13,28 +13,63 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     /// malicious caller can't queue the app into reading forever.
     private static let maxQueueSize = 50
 
+    private struct QueueItem {
+        let utterance: AVSpeechUtterance
+        let display: TTSSpeakingItem
+    }
+
     private let synthesizer = AVSpeechSynthesizer()
-    private var queue: [AVSpeechUtterance] = []
+    private var queue: [QueueItem] = []
     private var isSpeaking = false
+    private let preferences = TTSPreferenceStore()
 
     override init() {
         super.init()
         synthesizer.delegate = self
     }
 
-    func speak(_ text: String, language: String) {
-        guard !text.isEmpty, queue.count < Self.maxQueueSize else { return }
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: language)
-        queue.append(utterance)
+    /// - Parameters:
+    ///   - text: full text to speak (may include a repo prefix already mixed in).
+    ///   - language: BCP-47 code (`en-US`/`ja-JP`) used to pick the voice.
+    ///   - repo/displayText: kept separately only for the "now speaking" popup.
+    func speak(_ text: String, language: String, repo: String = "", displayText: String? = nil) {
+        guard !preferences.isMuted else { return }
+
+        let truncated = truncate(text)
+        guard !truncated.isEmpty, queue.count < Self.maxQueueSize else { return }
+
+        let utterance = AVSpeechUtterance(string: truncated)
+        utterance.voice = preferences.character.voice(language: language)
+        utterance.rate = preferences.rate
+        utterance.volume = preferences.volume
+        utterance.pitchMultiplier = preferences.pitch
+
+        let display = TTSSpeakingItem(repo: repo, text: displayText ?? text)
+        queue.append(QueueItem(utterance: utterance, display: display))
         speakNextIfIdle()
     }
 
+    /// Stops the current utterance and drops everything still queued.
+    func stopAll() {
+        queue.removeAll()
+        synthesizer.stopSpeaking(at: .immediate)
+    }
+
+    private func truncate(_ text: String) -> String {
+        let limit = preferences.maxCharacters
+        guard limit > 0, text.count > limit else { return text }
+        return String(text.prefix(limit))
+    }
+
     private func speakNextIfIdle() {
-        guard !isSpeaking, !queue.isEmpty else { return }
+        guard !isSpeaking, !queue.isEmpty else {
+            if queue.isEmpty { TTSSpeakingNowStore.shared.set(nil) }
+            return
+        }
         isSpeaking = true
         let next = queue.removeFirst()
-        synthesizer.speak(next)
+        TTSSpeakingNowStore.shared.set(next.display)
+        synthesizer.speak(next.utterance)
     }
 
     nonisolated func speechSynthesizer(
