@@ -5,7 +5,7 @@ import Network
 /// Claude Code Stop hook) can trigger TTS without shipping their own speech
 /// synthesis. Bound to 127.0.0.1 only — never reachable from the network.
 @MainActor
-final class TTSServer {
+final class TTSServer: ObservableObject {
     static let shared = TTSServer()
 
     struct SpeakRequestBody: Decodable {
@@ -22,11 +22,13 @@ final class TTSServer {
 
     private var listener: NWListener?
     private let port: NWEndpoint.Port
-    private var activeConnections: Set<ObjectIdentifier> = []
+    private var activeConnections: [ObjectIdentifier: NWConnection] = [:]
 
     /// Set once the listener reaches `.ready`; `nil` while stopped or failed
     /// (e.g. the requested port is already in use by another process).
-    private(set) var boundPort: UInt16?
+    /// `@Published` so settings UI reflects the real state instead of the
+    /// value read synchronously right after calling `start()`/`stop()`.
+    @Published private(set) var boundPort: UInt16?
 
     init(port: UInt16 = 8765) {
         self.port = NWEndpoint.Port(rawValue: port) ?? 8765
@@ -60,6 +62,18 @@ final class TTSServer {
         }
     }
 
+    func stop() {
+        listener?.cancel()
+        listener = nil
+        boundPort = nil
+        // Cancel in-flight connections too, so a request already being received
+        // doesn't still trigger speech after the server was told to stop.
+        for connection in activeConnections.values {
+            connection.cancel()
+        }
+        activeConnections.removeAll()
+    }
+
     private func handleStateChange(_ state: NWListener.State) {
         switch state {
         case .ready:
@@ -81,13 +95,13 @@ final class TTSServer {
             connection.cancel()
             return
         }
-        activeConnections.insert(ObjectIdentifier(connection))
+        activeConnections[ObjectIdentifier(connection)] = connection
         connection.start(queue: .main)
         receive(on: connection, buffer: Data())
     }
 
     private func finish(_ connection: NWConnection) {
-        activeConnections.remove(ObjectIdentifier(connection))
+        activeConnections.removeValue(forKey: ObjectIdentifier(connection))
         connection.cancel()
     }
 
@@ -140,21 +154,30 @@ final class TTSServer {
             return
         }
 
+        let preferences = TTSPreferenceStore()
         let repo = body.repo ?? ""
-        let fullText = repo.isEmpty ? body.text : "\(repo). \(body.text)"
-        let language = resolveLanguage(explicit: body.lang, text: fullText)
+        let includeRepoPrefix = preferences.speakRepoPrefix && !repo.isEmpty
+        let fullText = includeRepoPrefix ? "\(repo). \(body.text)" : body.text
+        let language = resolveLanguage(explicit: body.lang, text: fullText, preferences: preferences)
 
-        Speaker.shared.speak(fullText, language: language)
+        Speaker.shared.speak(fullText, language: language, repo: repo, displayText: body.text)
         TTSHistoryStore.shared.record(repo: repo, session: body.session ?? "", text: body.text)
 
         respond(status: "200 OK", body: "", on: connection)
     }
 
-    private func resolveLanguage(explicit: String?, text: String) -> String {
-        guard let explicit, explicit != "auto", !explicit.isEmpty else {
-            return LangDetector.speechLanguage(for: text)
+    /// The caller's own `lang` always wins when given explicitly — it knows the
+    /// text's language better than any local heuristic. `languageMode` only
+    /// kicks in when the caller left it to us (omitted or `"auto"`).
+    private func resolveLanguage(explicit: String?, text: String, preferences: TTSPreferenceStore) -> String {
+        if let explicit, explicit != "auto", !explicit.isEmpty {
+            return explicit
         }
-        return explicit
+        switch preferences.languageMode {
+        case .forcedJapanese: return "ja-JP"
+        case .forcedEnglish: return "en-US"
+        case .auto: return LangDetector.speechLanguage(for: text, threshold: preferences.cjkThreshold)
+        }
     }
 
     private func respond(status: String, body: String, on connection: NWConnection) {

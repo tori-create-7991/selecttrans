@@ -90,8 +90,8 @@ struct PopupView: View {
                 } label: {
                     Image(systemName: "speaker.wave.2")
                 }
-                .help("発音")
-                .disabled(model.output.isEmpty)
+                .help(TTSPreferenceStore().isMuted ? "発音（読み上げはミュート中です）" : "発音")
+                .disabled(model.output.isEmpty || TTSPreferenceStore().isMuted)
 
                 Button("逆翻訳", action: onBackTranslate)
                     .disabled(model.output.isEmpty || model.isBackTranslating)

@@ -6,11 +6,14 @@ import ApplicationServices
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var settingsWindow: NSWindow?
+    private var ttsServerToggleItem: NSMenuItem?
+    private var translationSettingsWindow: NSWindow?
+    private var speechSettingsWindow: NSWindow?
     private var ttsHistoryWindow: NSWindow?
     private var warmUpTimer: Timer?
 
     private let popup = PopupPanel()
+    private let speakingPopup = TTSSpeakingPopupPanel()
     private let translator = Translator()
     private let translationPreferences = TranslationPreferenceStore()
 
@@ -71,7 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in await self?.translator.warmUp() }
         }
 
-        TTSServer.shared.start()
+        if TTSPreferenceStore().isServerEnabled {
+            TTSServer.shared.start()
+        }
+        speakingPopup.start()
     }
 
     // MARK: - Main menu (enables ⌘W to close + ⌘C/⌘V/⌘X/⌘A in editors)
@@ -121,9 +127,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image = image
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "スクショ翻訳", action: #selector(captureAction), keyEquivalent: ""))
+        menu.delegate = self
+        menu.addItem(NSMenuItem(title: "翻訳履歴…", action: #selector(openTranslationHistory), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "読み上げ履歴…", action: #selector(openTTSHistory), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "設定…", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "翻訳の設定…", action: #selector(openTranslationSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "読み上げの設定…", action: #selector(openSpeechSettings), keyEquivalent: ""))
+        menu.addItem(.separator())
+        let ttsToggleItem = NSMenuItem(title: "読み上げサーバーを停止", action: #selector(toggleTTSServer), keyEquivalent: "")
+        menu.addItem(ttsToggleItem)
+        self.ttsServerToggleItem = ttsToggleItem
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q"))
         item.menu = menu
@@ -330,22 +343,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         handleCaptureHotkey()
     }
 
-    @objc private func openSettings() {
-        if settingsWindow == nil {
+    @objc private func openTranslationSettings() {
+        if translationSettingsWindow == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 520, height: 500),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
             )
-            window.title = "SelectTrans 設定"
+            window.title = "SelectTrans 翻訳の設定"
             window.contentView = NSHostingView(rootView: SettingsView())
             window.isReleasedWhenClosed = false
             window.center()
-            settingsWindow = window
+            translationSettingsWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        translationSettingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func openSpeechSettings() {
+        if speechSettingsWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 420, height: 260),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "SelectTrans 読み上げの設定"
+            window.contentView = NSHostingView(rootView: SpeechSettingsView())
+            window.isReleasedWhenClosed = false
+            window.center()
+            speechSettingsWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        speechSettingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func openTranslationHistory() {
+        let directory = MarkdownHistoryStore.defaultDirectory
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(directory)
+    }
+
+    @objc private func toggleTTSServer() {
+        let preferences = TTSPreferenceStore()
+        if TTSServer.shared.boundPort != nil {
+            TTSServer.shared.stop()
+            preferences.isServerEnabled = false
+        } else {
+            TTSServer.shared.start()
+            preferences.isServerEnabled = true
+        }
     }
 
     @objc private func openTTSHistory() {
@@ -368,5 +416,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        ttsServerToggleItem?.title = TTSServer.shared.boundPort != nil
+            ? "読み上げサーバーを停止"
+            : "読み上げサーバーを開始"
     }
 }
