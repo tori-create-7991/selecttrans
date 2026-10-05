@@ -18,10 +18,33 @@ SelectTransは独立したオープンソースプロジェクトであり、特
 
 ## ビルド & 起動
 
+macOS 26とフル版Xcodeが必要です。Metal Toolchainが未導入の場合は、
+`xcodebuild -downloadComponent MetalToolchain` で取得してください。
+`.app` 作成時に、SwiftPMが解決したMLXと同じソースからXcodeでMetalライブラリを生成・同梱します。
+初回ビルドはMLXのコンパイルに時間がかかります。
+
 ```bash
 swift run                 # 開発中（ターミナルにログ）
 bash scripts/make-app.sh  # .app バンドル化（推奨：権限が安定）
 open SelectTrans.app
+```
+
+`swift run` でQwenを使う場合は、先に `.app` を作成してから同梱ライブラリを
+`.build/debug/mlx.metallib` へコピーしてください。SwiftPM単独ではMetalシェーダーを生成できません。
+
+### Qwen実モデルの検証
+
+通常の `swift test` はモデル不要です。実モデルでロードと生成まで確認する場合は次を実行します。
+モデルフォルダのパスは端末の配置に合わせて指定してください。
+
+```bash
+swift test
+bash scripts/make-app.sh
+cp SelectTrans.app/Contents/MacOS/mlx.metallib \
+  .build/debug/SelectTransPackageTests.xctest/Contents/MacOS/mlx.metallib
+SELECTTRANS_QWEN_INTEGRATION=1 \
+SELECTTRANS_QWEN_MODEL_PATH="/absolute/path/to/Qwen-model" \
+  swift test --skip-build --filter QwenMLXTranslationEngineTests.loadsTheDownloadedModelAndGeneratesText
 ```
 
 メニューバーに「翻」が出れば起動成功。
