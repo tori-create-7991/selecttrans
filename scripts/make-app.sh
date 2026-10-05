@@ -12,10 +12,47 @@ swift build -c release
 BIN=".build/release/SelectTrans"
 APP="SelectTrans.app"
 MACOS="$APP/Contents/MacOS"
+MLX_CHECKOUT=".build/checkouts/mlx-swift"
+MLX_DERIVED_DATA=".build/mlx-xcode-derived-data"
+MLX_METALLIB="$MLX_DERIVED_DATA/Build/Products/Release/Cmlx.framework/Resources/default.metallib"
+
+build_mlx_metal_library() {
+    if [[ ! -d "$MLX_CHECKOUT/xcode/MLX.xcodeproj" ]]; then
+        echo "!! MLX Xcode project was not resolved by SwiftPM."
+        echo "   Run 'swift package resolve' and try again."
+        exit 1
+    fi
+
+    echo "==> Building MLX Metal shaders…"
+    xcodebuild \
+        -project "$MLX_CHECKOUT/xcode/MLX.xcodeproj" \
+        -scheme MLX \
+        -configuration Release \
+        -destination 'generic/platform=macOS' \
+        -sdk macosx \
+        -derivedDataPath "$MLX_DERIVED_DATA" \
+        CODE_SIGNING_ALLOWED=NO \
+        build
+
+    if [[ ! -s "$MLX_METALLIB" ]]; then
+        echo "!! MLX did not produce its Metal library."
+        exit 1
+    fi
+
+    # MLX's static runtime searches beside the executable for mlx.metallib.
+    # Use Xcode's linked product, not cached intermediate .air files.
+    cp "$MLX_METALLIB" "$MACOS/mlx.metallib"
+}
 
 rm -rf "$APP"
 mkdir -p "$MACOS"
 cp "$BIN" "$MACOS/SelectTrans"
+build_mlx_metal_library
+
+if [[ ! -s "$MACOS/mlx.metallib" ]]; then
+    echo "!! MLX Metal library was not packaged."
+    exit 1
+fi
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -45,13 +82,13 @@ SIGN_IDENTITY="${SELECTTRANS_SIGN_IDENTITY:-SelectTrans Self-Signed}"
 # never appears under "valid identities only", but codesign can still sign with it.
 if security find-identity -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY"; then
     echo "==> Signing with stable identity: '$SIGN_IDENTITY'"
-    codesign --force --sign "$SIGN_IDENTITY" "$APP"
+    codesign --force --deep --sign "$SIGN_IDENTITY" "$APP"
 else
     echo "!! Code-signing identity '$SIGN_IDENTITY' not found — using AD-HOC."
     echo "   (Accessibility + Keychain permission will reset on every rebuild.)"
     echo "   One-time fix: Keychain Access → Certificate Assistant → Create a Certificate"
     echo "     Name='$SIGN_IDENTITY', Identity Type='Self Signed Root', Type='Code Signing'."
-    codesign --force --sign - "$APP"
+    codesign --force --deep --sign - "$APP"
 fi
 
 codesign --verify --deep --strict "$APP"

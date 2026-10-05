@@ -16,4 +16,22 @@ struct QwenMLXTranslationEngineTests {
 
         #expect(availability.isAvailable)
     }
+
+    /// Opt-in hardware integration test. It is deliberately disabled in CI:
+    /// the real model is about 869 MB and is supplied only by the local user.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["SELECTTRANS_QWEN_INTEGRATION"] == "1"))
+    func loadsTheDownloadedModelAndGeneratesText() async throws {
+        let directory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SELECTTRANS_QWEN_MODEL_PATH"] ?? "")
+        let engine = QwenMLXTranslationEngine(modelDirectory: directory)
+        let availability = await engine.availability()
+        #expect(availability.isAvailable)
+
+        var output = ""
+        try await engine.translate(
+            prompt: "Reply with only: ready",
+            mode: .translate
+        ) { output += $0 }
+
+        #expect(!output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
 }
