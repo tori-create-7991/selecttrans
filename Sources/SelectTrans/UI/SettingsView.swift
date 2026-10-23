@@ -17,6 +17,25 @@ struct SettingsView: View {
     @StateObject private var qwenDownloader = QwenModelDownloader()
 
     var body: some View {
+        ScrollView {
+            settingsForm
+        }
+        .padding(20).frame(width: 520, height: 500)
+        .onAppear(perform: loginItems.refresh)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            loginItems.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            loginItems.refresh()
+        }
+        .task {
+            await refreshFoundationModelStatus()
+            await refreshQwenModelStatus()
+        }
+        .onChange(of: qwenDownloader.state) { _, _ in Task { await refreshQwenModelStatus() } }
+    }
+
+    private var settingsForm: some View {
         Form {
             Section("一般") {
                 Toggle("ログイン時に起動", isOn: Binding(
@@ -99,19 +118,6 @@ struct SettingsView: View {
                 Button("保存", action: save).keyboardShortcut(.defaultAction)
             }
         }
-        .padding(20).frame(width: 520)
-        .onAppear(perform: loginItems.refresh)
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            loginItems.refresh()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            loginItems.refresh()
-        }
-        .task {
-            await refreshFoundationModelStatus()
-            await refreshQwenModelStatus()
-        }
-        .onChange(of: qwenDownloader.state) { _, _ in Task { await refreshQwenModelStatus() } }
     }
 
     @ViewBuilder private var downloadState: some View {

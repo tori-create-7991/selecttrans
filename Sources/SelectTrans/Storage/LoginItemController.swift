@@ -34,7 +34,9 @@ final class LoginItemController: ObservableObject {
     var requiresApproval: Bool { status == .requiresApproval }
 
     func refresh() {
-        status = service.status
+        let currentStatus = service.status
+        if currentStatus != status { errorMessage = nil }
+        status = currentStatus
     }
 
     func setEnabled(_ enabled: Bool) {
@@ -51,7 +53,7 @@ final class LoginItemController: ObservableObject {
         } catch {
             errorMessage = "ログイン時起動を変更できませんでした: \(error.localizedDescription)"
         }
-        refresh()
+        status = service.status
     }
 
     func openSystemSettings() {

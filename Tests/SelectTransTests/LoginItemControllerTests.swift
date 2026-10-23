@@ -117,6 +117,33 @@ struct LoginItemControllerTests {
         #expect(controller.errorMessage == nil)
     }
 
+    @Test func externalRecoveryClearsThePreviousError() {
+        let service = LoginItemServiceStub(status: .notRegistered)
+        service.registerError = LoginItemTestError.failed
+        let controller = LoginItemController(service: service)
+        controller.setEnabled(true)
+        #expect(controller.errorMessage != nil)
+
+        service.status = .enabled
+        controller.refresh()
+
+        #expect(controller.isOn)
+        #expect(controller.errorMessage == nil)
+    }
+
+    @Test func missingServiceDoesNotShowAnEnabledRegistration() {
+        let service = LoginItemServiceStub(status: .notFound)
+        service.registerError = LoginItemTestError.failed
+        let controller = LoginItemController(service: service)
+        #expect(!controller.isOn)
+
+        controller.setEnabled(true)
+
+        #expect(controller.status == .notFound)
+        #expect(!controller.isOn)
+        #expect(controller.errorMessage != nil)
+    }
+
     @Test func changingToTheCurrentStateDoesNotReregister() {
         let service = LoginItemServiceStub(status: .enabled)
         let controller = LoginItemController(service: service)
