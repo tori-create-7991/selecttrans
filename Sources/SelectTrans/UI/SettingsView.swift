@@ -3,6 +3,7 @@ import SwiftUI
 import KeyboardShortcuts
 
 struct SettingsView: View {
+    @StateObject private var loginItems = LoginItemController()
     @State private var translateModel = ModelStore.model(for: .translate)
     @State private var proofreadModel = ModelStore.model(for: .proofread)
     @State private var fastLiteralDisplay = TranslationPreferenceStore().isFastLiteralDisplayEnabled
@@ -17,6 +18,26 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("一般") {
+                Toggle("ログイン時に起動", isOn: Binding(
+                    get: { loginItems.isOn },
+                    set: { loginItems.setEnabled($0) }
+                ))
+                Text("変更はすぐに反映されます。")
+                    .font(.caption).foregroundStyle(.secondary)
+                if loginItems.requiresApproval {
+                    Text("macOSの承認待ちです。自動起動を有効にするには、システム設定でSelectTransを許可してください。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("ログイン項目の設定を開く", action: loginItems.openSystemSettings)
+                }
+                if loginItems.status == .notFound {
+                    Text("ログイン項目を確認できません。SelectTrans.appから起動してください。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let message = loginItems.errorMessage {
+                    Text(message).font(.caption).foregroundStyle(.red)
+                }
+            }
             Section("ショートカット") {
                 KeyboardShortcuts.Recorder("翻訳を起動:", name: .translate)
                 KeyboardShortcuts.Recorder("スクショ翻訳:", name: .translateCapture)
@@ -79,6 +100,13 @@ struct SettingsView: View {
             }
         }
         .padding(20).frame(width: 520)
+        .onAppear(perform: loginItems.refresh)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            loginItems.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            loginItems.refresh()
+        }
         .task {
             await refreshFoundationModelStatus()
             await refreshQwenModelStatus()
